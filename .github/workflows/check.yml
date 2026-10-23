@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '0 6 * * 1'   # montags 06:00 UTC (= 7/8 Uhr deutscher Zeit)
   workflow_dispatch:       # "Run workflow"-Knopf für einen manuellen Check
+    inputs:
+      test:
+        description: 'Test-Nachricht senden'
+        type: boolean
+        default: true
 
 permissions:
   contents: write          # damit state.json zurück ins Repo geschrieben werden darf
@@ -32,6 +37,7 @@ jobs:
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
           PUSH_SUBSCRIPTIONS: ${{ secrets.PUSH_SUBSCRIPTIONS }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TEST_PUSH: ${{ inputs.test }}
           APP_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
 
       # Läuft auch, wenn ein Push fehlschlägt – der neue Stand soll trotzdem gespeichert werden.

@@ -124,24 +124,65 @@ async function notify(messages) {
   messages.forEach((m) => console.log(`  • ${m.title} – ${m.body}`));
   if (DRY) return console.log('(--dry: nichts gesendet)');
 
-  const { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT, PUSH_SUBSCRIPTIONS, NTFY_TOPIC } = process.env;
+  // Secrets werden oft mit Leerzeichen oder Anführungszeichen eingefügt – großzügig bereinigen.
+  const clean = (v) => (v || '').trim().replace(/^["']|["']$/g, '').trim();
+  const VAPID_PUBLIC_KEY = clean(process.env.VAPID_PUBLIC_KEY);
+  const VAPID_PRIVATE_KEY = clean(process.env.VAPID_PRIVATE_KEY);
+  const PUSH_SUBSCRIPTIONS = (process.env.PUSH_SUBSCRIPTIONS || '').trim();
+  const NTFY_TOPIC = clean(process.env.NTFY_TOPIC);
+  let subject = clean(process.env.VAPID_SUBJECT) || 'mailto:noreply@example.com';
+  if (!/^(mailto:|https:)/.test(subject)) subject = 'mailto:' + subject;
 
-  if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY && PUSH_SUBSCRIPTIONS) {
-    const webpush = (await import('web-push')).default;
-    webpush.setVapidDetails(VAPID_SUBJECT || 'mailto:noreply@example.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
-    const subs = [JSON.parse(PUSH_SUBSCRIPTIONS)].flat();
-    for (const sub of subs) {
-      for (const m of messages) {
+  if (PUSH_SUBSCRIPTIONS) {
+    let subs;
+    try {
+      // Erlaubt: ein Objekt, eine Liste [..] oder mehrere Objekte nur mit Komma/Zeilenumbruch getrennt.
+      subs = [JSON.parse(/^\[/.test(PUSH_SUBSCRIPTIONS) ? PUSH_SUBSCRIPTIONS : `[${PUSH_SUBSCRIPTIONS.replace(/}\s*,?\s*{/g, '},{')}]`)].flat();
+    } catch (e) {
+      console.error(`✗ Secret PUSH_SUBSCRIPTIONS ist kein gültiges JSON (${e.message}). Text aus der App komplett neu kopieren.`);
+      process.exitCode = 1;
+      subs = [];
+    }
+    const invalid = subs.filter((s) => !s?.endpoint || !s?.keys?.p256dh || !s?.keys?.auth);
+    if (invalid.length) { console.error(`✗ ${invalid.length} Eintrag/Einträge in PUSH_SUBSCRIPTIONS sind unvollständig (endpoint/keys fehlen).`); process.exitCode = 1; }
+    subs = subs.filter((s) => !invalid.includes(s));
+
+    let webpush;
+    if (subs.length) {
+      if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+        console.error('✗ VAPID_PUBLIC_KEY oder VAPID_PRIVATE_KEY fehlt in den Secrets.');
+        process.exitCode = 1;
+      } else {
+        webpush = (await import('web-push')).default;
         try {
-          await webpush.sendNotification(sub, JSON.stringify(m), { TTL: 7 * 24 * 3600 });
+          webpush.setVapidDetails(subject, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
         } catch (e) {
-          const hint = e.statusCode === 404 || e.statusCode === 410 ? ' → Abo abgelaufen, in der App neu aktivieren und Secret ersetzen' : '';
-          console.error(`  ✗ Web Push fehlgeschlagen (${e.statusCode || e.message})${hint}`);
+          console.error(`✗ VAPID-Secrets ungültig: ${e.message}`);
           process.exitCode = 1;
+          webpush = null;
         }
       }
     }
-    console.log(`✓ Web Push an ${subs.length} Gerät(e) gesendet`);
+
+    let ok = 0;
+    for (const [i, sub] of (webpush ? subs : []).entries()) {
+      const device = `Gerät ${i + 1} (${new URL(sub.endpoint).hostname})`;
+      try {
+        for (const m of messages) await webpush.sendNotification(sub, JSON.stringify(m), { TTL: 7 * 24 * 3600 });
+        ok++;
+        console.log(`  ✓ ${device}`);
+      } catch (e) {
+        const hint = {
+          404: 'Abo abgelaufen → in der App „Push aktivieren“ neu und Secret ersetzen',
+          410: 'Abo abgelaufen → in der App „Push aktivieren“ neu und Secret ersetzen',
+          403: 'Schlüssel passt nicht zum Abo → VAPID_PUBLIC_KEY muss exakt dem Schlüssel in config.js entsprechen',
+          401: 'Schlüssel passt nicht zum Abo → VAPID_PUBLIC_KEY muss exakt dem Schlüssel in config.js entsprechen',
+        }[e.statusCode] || (e.body || e.message || '').toString().slice(0, 200);
+        console.error(`  ✗ ${device}: HTTP ${e.statusCode || '–'} – ${hint}`);
+        process.exitCode = 1;
+      }
+    }
+    if (webpush) console.log(`Web Push: ${ok} von ${subs.length} Gerät(en) erfolgreich`);
   }
 
   if (NTFY_TOPIC) {
@@ -198,6 +239,16 @@ for (const f of festivals) {
     console.log(`✗ ${f.name.padEnd(32)} ${error}`);
   }
   next.festivals[f.url] = entry;
+}
+
+// Manuell gestarteter Lauf mit Häkchen „Test-Nachricht senden“: immer eine Nachricht schicken.
+if (process.env.TEST_PUSH === 'true') {
+  const open = festivals.filter((f) => next.festivals[f.url]?.status === 'open' && !next.festivals[f.url]?.error).map((f) => f.name);
+  messages.unshift({
+    title: '✅ Test: Push funktioniert',
+    body: open.length ? `Gerade offen: ${open.join(', ')}` : 'Gerade ist keine Bewerbung offen.',
+    url: APP_URL, tag: 'test',
+  });
 }
 
 await writeFile(new URL('state.json', ROOT), JSON.stringify(next, null, 2) + '\n');
