@@ -126,8 +126,14 @@ async function notify(messages) {
 
   // Secrets werden oft mit Leerzeichen oder Anführungszeichen eingefügt – großzügig bereinigen.
   const clean = (v) => (v || '').trim().replace(/^["']|["']$/g, '').trim();
-  const VAPID_PUBLIC_KEY = clean(process.env.VAPID_PUBLIC_KEY);
-  const VAPID_PRIVATE_KEY = clean(process.env.VAPID_PRIVATE_KEY);
+  // Aus dem Secret nur den eigentlichen Schlüssel herausfischen (falls Überschrift/Zeilenumbrüche mitkopiert wurden).
+  const key = (v, len) => (clean(v).match(new RegExp(`[A-Za-z0-9_-]{${len}}(?![A-Za-z0-9_-])`)) || [''])[0];
+  // Der öffentliche Schlüssel steht ohnehin in config.js – der ist maßgeblich, denn mit ihm wurden die Abos erstellt.
+  const configKey = key((await readFile(new URL('config.js', ROOT), 'utf8')).match(/VAPID_PUBLIC_KEY:\s*'([^']*)'/)?.[1], 87);
+  const secretKey = key(process.env.VAPID_PUBLIC_KEY, 87);
+  if (secretKey && configKey && secretKey !== configKey) console.warn('⚠ Secret VAPID_PUBLIC_KEY weicht von config.js ab – verwende den Schlüssel aus config.js.');
+  const VAPID_PUBLIC_KEY = configKey || secretKey;
+  const VAPID_PRIVATE_KEY = key(process.env.VAPID_PRIVATE_KEY, 43);
   const PUSH_SUBSCRIPTIONS = (process.env.PUSH_SUBSCRIPTIONS || '').trim();
   const NTFY_TOPIC = clean(process.env.NTFY_TOPIC);
   let subject = clean(process.env.VAPID_SUBJECT) || 'mailto:noreply@example.com';
