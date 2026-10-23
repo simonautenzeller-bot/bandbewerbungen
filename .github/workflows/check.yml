@@ -21,9 +21,9 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
 
@@ -49,4 +49,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add state.json
           git diff --cached --quiet || git commit -m "Status-Update $(date -u +%F)"
-          git push
+          git pull --rebase -X theirs origin "${GITHUB_REF_NAME}"   # falls inzwischen jemand anderes gepusht hat
+          git push origin "HEAD:${GITHUB_REF_NAME}"
