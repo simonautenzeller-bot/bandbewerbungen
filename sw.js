@@ -1,4 +1,4 @@
-const CACHE = 'bandbewerbungen-v1';
+const CACHE = 'bandbewerbungen-v2';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'config.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
 
 self.addEventListener('install', (e) => {

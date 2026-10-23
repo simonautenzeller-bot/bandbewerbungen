@@ -30,12 +30,12 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const fmt = (iso) => (iso ? new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '–');
 const daysAgo = (iso) => (iso ? (Date.now() - new Date(iso)) / 864e5 : Infinity);
 
-function toast(msg) {
+function toast(msg, ms = 2600) {
   const t = $('#toast');
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(toast.t);
-  toast.t = setTimeout(() => t.classList.remove('show'), 2600);
+  toast.t = setTimeout(() => t.classList.remove('show'), ms);
 }
 
 async function loadJson(path, fallback) {
@@ -124,7 +124,10 @@ async function setupPush() {
   btn.onclick = async () => {
     if (!cfg.VAPID_PUBLIC_KEY) return toast('Erst VAPID_PUBLIC_KEY in config.js eintragen (siehe README).');
     const perm = await Notification.requestPermission();
-    if (perm !== 'granted') return toast('Benachrichtigungen wurden nicht erlaubt.');
+    if (perm === 'denied') {
+      return toast('Benachrichtigungen sind für diese Seite blockiert. Über das Schloss-Symbol links neben der Adresse → Benachrichtigungen → Zulassen, dann neu laden.', 9000);
+    }
+    if (perm !== 'granted') return toast('Die Anfrage wurde geschlossen. Bitte nochmal tippen und „Zulassen“ wählen.', 6000);
     try {
       const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(cfg.VAPID_PUBLIC_KEY) });
       showSubscription(sub);

@@ -1,4 +1,5 @@
-﻿{
+{
+  "id": "/bandbewerbungen/",
   "name": "Bandbewerbungen",
   "short_name": "Bewerbungen",
   "description": "Benachrichtigt dich, wenn Festivals Bandbewerbungen öffnen.",
