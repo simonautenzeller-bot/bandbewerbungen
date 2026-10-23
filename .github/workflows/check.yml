@@ -1,0 +1,46 @@
+name: Wöchentlicher Check
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # montags 06:00 UTC (= 7/8 Uhr deutscher Zeit)
+  workflow_dispatch:       # "Run workflow"-Knopf für einen manuellen Check
+
+permissions:
+  contents: write          # damit state.json zurück ins Repo geschrieben werden darf
+
+concurrency:
+  group: check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm install --no-audit --no-fund
+
+      - name: Festivals prüfen
+        run: node scripts/check.mjs
+        env:
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          PUSH_SUBSCRIPTIONS: ${{ secrets.PUSH_SUBSCRIPTIONS }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          APP_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+
+      # Läuft auch, wenn ein Push fehlschlägt – der neue Stand soll trotzdem gespeichert werden.
+      # Der wöchentliche Commit verhindert nebenbei, dass GitHub den Zeitplan nach 60 Tagen Inaktivität abschaltet.
+      - name: Status speichern
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state.json
+          git diff --cached --quiet || git commit -m "Status-Update $(date -u +%F)"
+          git push

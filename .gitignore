@@ -1,0 +1,3 @@
+node_modules/
+.claude/
+vapid-keys.txt
