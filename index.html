@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bandbewerbungen</title>
+  <meta name="description" content="Benachrichtigt dich, wenn Festivals Bandbewerbungen öffnen.">
+  <meta name="theme-color" content="#0f1217">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <img src="icons/icon.svg" alt="" width="44" height="44">
+      <h1>Bandbewerbungen</h1>
+      <p class="sub" id="lastRun">Lade Status …</p>
+    </div>
+    <span class="pill" id="openPill"><span class="dot"></span><span>Lade …</span></span>
+    <button id="pushBtn" class="btn primary" hidden>Push aktivieren</button>
+  </header>
+
+  <main>
+    <section id="pushPanel" class="panel" hidden>
+      <h2>Push eingerichtet – letzter Schritt</h2>
+      <p>Kopiere diesen Text und speichere ihn in GitHub unter
+        <b>Settings → Secrets and variables → Actions</b> als Secret <code>PUSH_SUBSCRIPTIONS</code>.
+        Mehrere Geräte? Dann als Liste: <code>[{…}, {…}]</code>.</p>
+      <textarea id="subJson" readonly rows="5"></textarea>
+      <div class="row">
+        <button id="copySub" class="btn">Kopieren</button>
+        <a id="secretsLink" class="btn ghost" target="_blank" rel="noopener">Secrets öffnen ↗</a>
+        <button id="testPush" class="btn ghost">Lokale Test-Nachricht</button>
+      </div>
+    </section>
+
+    <section id="iosHint" class="panel hint" hidden>
+      📱 Auf dem iPhone: erst über <b>Teilen → Zum Home-Bildschirm</b> installieren, dann die App von dort öffnen – nur so sind Push-Nachrichten möglich.
+    </section>
+
+    <div class="toolbar">
+      <div class="filters" role="tablist">
+        <button class="chip active" data-filter="all">Alle</button>
+        <button class="chip" data-filter="open">Offen</button>
+        <button class="chip" data-filter="changed">Kürzlich geändert</button>
+      </div>
+      <div class="row">
+        <a id="runLink" class="btn ghost small" target="_blank" rel="noopener">Jetzt prüfen</a>
+        <button id="addToggle" class="btn small">+ Festival</button>
+      </div>
+    </div>
+
+    <form id="addForm" class="panel" hidden>
+      <h2>Festival hinzufügen</h2>
+      <label>Name <input name="name" required placeholder="z. B. Mein Lieblingsfestival"></label>
+      <label>URL der Bewerbungs-/Info-Seite <input name="url" type="url" required placeholder="https://…"></label>
+      <label>Notiz (optional) <input name="notes" placeholder="z. B. Genre, Bewerbung über Formular"></label>
+      <p class="small muted">Der Eintrag wird in die Zwischenablage kopiert, und die Datei <code>festivals.json</code> öffnet sich auf GitHub. Füge ihn dort in die Liste ein und klicke auf „Commit changes“.</p>
+      <div class="row">
+        <button class="btn primary" type="submit">Kopieren &amp; auf GitHub öffnen</button>
+        <button class="btn ghost" type="button" id="addCancel">Abbrechen</button>
+      </div>
+    </form>
+
+    <ul id="list" class="list" aria-live="polite"></ul>
+    <p id="empty" class="muted center" hidden>Keine Einträge für diesen Filter.</p>
+  </main>
+
+  <footer class="muted small center">
+    Wird wöchentlich automatisch geprüft · <a id="repoLink" target="_blank" rel="noopener">Repo</a>
+  </footer>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

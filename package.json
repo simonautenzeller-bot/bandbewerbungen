@@ -1,0 +1,13 @@
+{
+  "name": "bandbewerbungen",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "check:dry": "node scripts/check.mjs --dry",
+    "vapid": "web-push generate-vapid-keys"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}
